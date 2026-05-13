@@ -6,27 +6,43 @@ import tensorflow as tf
 from PIL import Image
 
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from firebase_admin import storage
 
 from app import auth, schemas
-from app.services.firestore_service import FirestoreService
+from app.services.supabase_service import SupabaseService
 from app.models.models import User, ReportCreate, ReportInDB, ClassificationResult
-from app.db.firebase import get_firestore_db # Ensure Firebase is initialized
+from app.db.supabase import get_supabase_client
 
 app = FastAPI(title="FluoroSense Backend")
 
-firestore_service = FirestoreService()
+# --- CORS Configuration ---
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:3000",
+    "*", # Allow all origins for development
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+supabase_service = SupabaseService()
 
 # Global variables for ML model
 model = None
 labels = []
 
-# --- Startup Event (Initialize Firebase and Load ML Model) ---
+# --- Startup Event (Initialize Supabase and Load ML Model) ---
 @app.on_event("startup")
 async def startup_event():
-    get_firestore_db() # This will trigger Firebase Admin SDK initialization
-    print("FastAPI app starting up. Firebase initialized.")
+    get_supabase_client()
+    print("FastAPI app starting up. Supabase initialized.")
     
     global model, labels
     try:
@@ -44,20 +60,19 @@ async def startup_event():
     except Exception as e:
         print(f"Error loading TFLite model or labels: {e}")
         print("Ensure 'assets/model.tflite' and 'assets/labels.txt' exist in the backend/ directory.")
-        # Optionally, exit or handle gracefully if ML model is critical
-        # exit(1) 
 
 # --- User Authentication and Registration ---
 @app.post("/register", response_model=schemas.UserResponse)
 async def register_user(user_in: schemas.UserCreate):
-    existing_user = await firestore_service.get_user_by_email(user_in.email)
+    print("User registration requested for email:", user_in.email)
+    existing_user = await supabase_service.get_user_by_email(user_in.email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     hashed_password = auth.get_password_hash(user_in.password)
-    user_data = await firestore_service.create_user(user_in.email, hashed_password)
+    user_data = await supabase_service.create_user(user_in.email, hashed_password)
     return schemas.UserResponse(id=user_data["email"], email=user_data["email"])
 
 @app.post("/token", response_model=schemas.Token)
@@ -80,6 +95,22 @@ async def login_for_access_token(
 @app.get("/users/me", response_model=schemas.UserResponse)
 async def read_users_me(current_user: Annotated[dict, Depends(auth.get_current_user)]):
     return schemas.UserResponse(id=current_user["email"], email=current_user["email"])
+
+@app.put("/users/me", response_model=schemas.UserResponse)
+async def update_user_me(
+    current_user: Annotated[dict, Depends(auth.get_current_user)],
+    user_update: schemas.UserUpdate
+):
+    update_data = user_update.model_dump(exclude_unset=True)
+    
+    if "password" in update_data:
+        password = update_data.pop("password")
+        update_data["hashed_password"] = auth.get_password_hash(password)
+        
+    updated_user = await supabase_service.update_user(current_user["email"], update_data)
+    if not updated_user:
+        raise HTTPException(status_code=400, detail="Update failed")
+    return schemas.UserResponse(id=updated_user["email"], **{k: v for k, v in updated_user.items() if k != "id"})
 
 # --- Report Submission and ML Inference ---
 @app.post("/report", response_model=ClassificationResult)
@@ -125,13 +156,15 @@ async def submit_report(
     classification = labels[predicted_index]
     confidence = float(probabilities[predicted_index]) # Convert to standard float
 
-    # 2. Upload Image to Firebase Storage
-    bucket = storage.bucket()
-    blob = bucket.blob(f"user_images/{user_id}/{image_file.filename}")
-    blob.upload_from_string(contents, content_type=image_file.content_type)
-    image_url = blob.public_url # Or signed URL if bucket is private
+    # 2. Upload Image to Supabase Storage
+    image_url = await supabase_service.upload_image(
+        user_id=user_id,
+        filename=image_file.filename,
+        contents=contents,
+        content_type=image_file.content_type
+    )
 
-    # 3. Save Report to Firestore
+    # 3. Save Report to Supabase
     report_data = ReportCreate(
         name=name,
         age=age,
@@ -146,7 +179,7 @@ async def submit_report(
         image_url=image_url,
         user_id=user_id,
     )
-    await firestore_service.create_report(report_data)
+    await supabase_service.create_report(report_data)
 
     return ClassificationResult(classification=classification, confidence=confidence)
 
@@ -154,7 +187,7 @@ async def submit_report(
 @app.get("/reports/me", response_model=List[ReportInDB])
 async def get_my_reports(current_user: Annotated[dict, Depends(auth.get_current_user)]):
     user_id = current_user["email"]
-    reports = await firestore_service.get_user_reports(user_id)
+    reports = await supabase_service.get_user_reports(user_id)
     return reports
 
 @app.get("/")

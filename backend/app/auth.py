@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from app.services.firestore_service import FirestoreService
+from app.services.supabase_service import SupabaseService
 
 from dotenv import load_dotenv
 import os
@@ -21,7 +21,7 @@ if SECRET_KEY is None:
     SECRET_KEY = "a_default_insecure_key_for_development"
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 15  # 15 days
 
 # Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -29,8 +29,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 for Token handling
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Firestore Service instance
-firestore_service = FirestoreService()
+# Supabase Service instance
+supabase_service = SupabaseService()
 
 # --- Password Utilities ---
 def verify_password(plain_password, hashed_password):
@@ -67,7 +67,7 @@ def decode_access_token(token: str):
 
 # --- User Authentication and Retrieval ---
 async def authenticate_user(email: str, password: str):
-    user_data = await firestore_service.get_user_by_email(email)
+    user_data = await supabase_service.get_user_by_email(email)
     if not user_data:
         return None
     if not verify_password(password, user_data["hashed_password"]):
@@ -76,7 +76,7 @@ async def authenticate_user(email: str, password: str):
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     email = decode_access_token(token)
-    user = await firestore_service.get_user_by_email(email)
+    user = await supabase_service.get_user_by_email(email)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

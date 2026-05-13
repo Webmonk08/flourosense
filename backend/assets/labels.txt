@@ -1,0 +1,4 @@
+Mild
+Moderate
+No Fluorosis
+Severe

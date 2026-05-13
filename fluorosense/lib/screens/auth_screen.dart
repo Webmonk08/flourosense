@@ -6,7 +6,7 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  _AuthScreenState createState() => _AuthScreenState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends State<AuthScreen> {
@@ -103,21 +103,26 @@ class _AuthScreenState extends State<AuthScreen> {
       });
       try {
         final success = await _authService.signIn(_email, _password);
-        if (success && mounted) {
+        if (!mounted) return;
+        if (success) {
           Navigator.pushReplacementNamed(context, '/user-classification');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Login failed. Please check your credentials.')),
+            const SnackBar(
+                content: Text('Login failed. Please check your credentials.')),
           );
         }
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('An error occurred: $e')),
         );
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }

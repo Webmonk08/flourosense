@@ -27,7 +27,23 @@ class AuthService {
     await _apiService.logout();
   }
 
-  // You can add a method to check for a stored token
-  // to see if the user is already logged in at app startup.
-  // Future<bool> isLoggedIn() async { ... }
+  /// Checks if a token exists in storage.
+  /// Returns true if a token is found, false otherwise.
+  Future<bool> isLoggedIn() async {
+    return await _apiService.hasToken();
+  }
+
+  /// Validates the stored token by making a request to the server.
+  /// Returns true if the token is still valid, false otherwise.
+  /// If the token is invalid/expired, it is automatically cleared.
+  Future<bool> validateToken() async {
+    try {
+      await _apiService.getUserProfile();
+      return true;
+    } catch (e) {
+      // Token is invalid or expired — clear it
+      await _apiService.logout();
+      return false;
+    }
+  }
 }

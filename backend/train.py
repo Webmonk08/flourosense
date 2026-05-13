@@ -87,7 +87,7 @@ def main(dataset_path, output_path):
     print(f"Found {num_classes} classes: {list(train_generator.class_indices.keys())}")
 
     # --- 2. Build and Compile Model ---
-    model, base_model = build_model(num_classes, IMG_SIZE + (3,)))
+    model, base_model = build_model(num_classes, IMG_SIZE + (3,))
     model = compile_model(model, LEARNING_RATE)
     
     print("\n--- Initial Training (Frozen Base Model) ---")

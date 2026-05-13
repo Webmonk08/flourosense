@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:fluorosense/services/firestore_service.dart';
+import 'package:fluorosense/services/api_service.dart';
 
 class MaternalChildFormScreen extends StatefulWidget {
   const MaternalChildFormScreen({super.key});
 
   @override
-  _MaternalChildFormScreenState createState() =>
+  State<MaternalChildFormScreen> createState() =>
       _MaternalChildFormScreenState();
 }
 
 class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _pageController = PageController();
+  bool _isPrefilled = false;
+  bool _initialized = false;
 
   String _name = '',
       _age = '',
@@ -19,6 +21,30 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
       _waterSource = '',
       _toothpasteType = '';
   String _milkIntake = '', _sugarLevels = '', _toothpasteSwallowing = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      _loadPrefilledData();
+    }
+  }
+
+  void _loadPrefilledData() {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic> && args['prefilled'] == true) {
+      final profile = args['profile'] as Map<String, dynamic>?;
+      if (profile != null) {
+        _isPrefilled = true;
+        _name = profile['name']?.toString() ?? '';
+        _age = profile['age']?.toString() ?? '';
+        _gender = profile['gender']?.toString() ?? '';
+        _waterSource = profile['water_source']?.toString() ?? '';
+        _toothpasteType = profile['toothpaste_type']?.toString() ?? '';
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +58,9 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
         child: PageView(
           controller: _pageController,
           physics: NeverScrollableScrollPhysics(),
-          children: [
-            _buildPersonalDetailsPage(),
-            _buildExposureDetailsPage(),
-          ],
+          children: _isPrefilled
+              ? [_buildExposureDetailsPage()]
+              : [_buildPersonalDetailsPage(), _buildExposureDetailsPage()],
         ),
       ),
     );
@@ -47,8 +72,10 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Personal Details',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Personal Details',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           SizedBox(height: 20),
           TextFormField(
             decoration: InputDecoration(labelText: 'Name'),
@@ -65,20 +92,22 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
           SizedBox(height: 20),
           DropdownButtonFormField(
             decoration: InputDecoration(labelText: 'Gender'),
-            value: _gender.isEmpty ? null : _gender,
+            initialValue: _gender.isEmpty ? null : _gender,
             items: ['Male', 'Female', 'Other']
-                .map((label) =>
-                    DropdownMenuItem(value: label, child: Text(label)))
+                .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)),
+                )
                 .toList(),
             onChanged: (value) => setState(() => _gender = value.toString()),
           ),
           SizedBox(height: 20),
           DropdownButtonFormField(
             decoration: InputDecoration(labelText: 'Primary Water Source'),
-            value: _waterSource.isEmpty ? null : _waterSource,
+            initialValue: _waterSource.isEmpty ? null : _waterSource,
             items: ['Well', 'RO', 'Ground', 'Other']
-                .map((label) =>
-                    DropdownMenuItem(value: label, child: Text(label)))
+                .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)),
+                )
                 .toList(),
             onChanged: (value) =>
                 setState(() => _waterSource = value.toString()),
@@ -94,8 +123,9 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
               if (_formKey.currentState!.validate()) {
                 _formKey.currentState!.save();
                 _pageController.nextPage(
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeIn);
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeIn,
+                );
               }
             },
             child: Text('Next'),
@@ -111,8 +141,10 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Exposure Details',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Exposure Details',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           SizedBox(height: 20),
           TextFormField(
             decoration: InputDecoration(labelText: 'Daily Milk Intake (ml)'),
@@ -127,12 +159,16 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
           ),
           SizedBox(height: 20),
           DropdownButtonFormField(
-            decoration:
-                InputDecoration(labelText: 'Toothpaste Swallowing Habit'),
-            value: _toothpasteSwallowing.isEmpty ? null : _toothpasteSwallowing,
+            decoration: InputDecoration(
+              labelText: 'Toothpaste Swallowing Habit',
+            ),
+            initialValue: _toothpasteSwallowing.isEmpty
+                ? null
+                : _toothpasteSwallowing,
             items: ['Never', 'Sometimes', 'Always']
-                .map((label) =>
-                    DropdownMenuItem(value: label, child: Text(label)))
+                .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)),
+                )
                 .toList(),
             onChanged: (value) =>
                 setState(() => _toothpasteSwallowing = value.toString()),
@@ -141,18 +177,19 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TextButton(
-                onPressed: () => _pageController.previousPage(
+              if (!_isPrefilled)
+                TextButton(
+                  onPressed: () => _pageController.previousPage(
                     duration: Duration(milliseconds: 300),
-                    curve: Curves.easeIn),
-                child: Text('Back'),
-              ),
+                    curve: Curves.easeIn,
+                  ),
+                  child: Text('Back'),
+                ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
 
-                    // Collect data into a map
                     final formData = {
                       'name': _name,
                       'age': _age,
@@ -164,8 +201,30 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
                       'toothpaste_swallowing': _toothpasteSwallowing,
                     };
 
-                    // Navigate to image selection, passing form data
-                    Navigator.pushNamed(context, '/camera', arguments: formData);
+                    if (!_isPrefilled) {
+                      final args = ModalRoute.of(context)?.settings.arguments;
+                      if (args is Map<String, dynamic> &&
+                          args['is_self'] == true) {
+                        try {
+                          await ApiService().updateProfile({
+                            'name': _name,
+                            'age': _age,
+                            'gender': _gender,
+                            'water_source': _waterSource,
+                            'toothpaste_type': _toothpasteType,
+                            'user_type': 'Pregnant/Caretaker (<9yrs)',
+                          });
+                        } catch (_) {}
+                      }
+                    }
+
+                    if (mounted) {
+                      Navigator.pushNamed(
+                        context,
+                        '/camera',
+                        arguments: formData,
+                      );
+                    }
                   }
                 },
                 child: Text('Next: Select Image'),
@@ -177,5 +236,3 @@ class _MaternalChildFormScreenState extends State<MaternalChildFormScreen> {
     );
   }
 }
-
-

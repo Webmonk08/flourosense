@@ -7,6 +7,7 @@ import 'package:fluorosense/screens/maternal_child_form_screen.dart';
 import 'package:fluorosense/screens/general_user_form_screen.dart';
 import 'package:fluorosense/screens/camera_screen.dart';
 import 'package:fluorosense/screens/register_screen.dart';
+import 'package:fluorosense/screens/profile_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,7 @@ class MyApp extends StatelessWidget {
           '/maternal-child-form': (context) => MaternalChildFormScreen(),
           '/general-user-form': (context) => GeneralUserFormScreen(),
           '/camera': (context) => ImageSelectionScreen(),
+          '/profile': (context) => const ProfileScreen(),
         },
       ),
     );
