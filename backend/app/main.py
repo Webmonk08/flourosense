@@ -94,7 +94,16 @@ async def login_for_access_token(
 
 @app.get("/users/me", response_model=schemas.UserResponse)
 async def read_users_me(current_user: Annotated[dict, Depends(auth.get_current_user)]):
-    return schemas.UserResponse(id=current_user["email"], email=current_user["email"])
+    return schemas.UserResponse(
+        id=current_user.get("email"),
+        email=current_user.get("email"),
+        name=current_user.get("name"),
+        age=current_user.get("age"),
+        gender=current_user.get("gender"),
+        water_source=current_user.get("water_source"),
+        toothpaste_type=current_user.get("toothpaste_type"),
+        user_type=current_user.get("user_type")
+    )
 
 @app.put("/users/me", response_model=schemas.UserResponse)
 async def update_user_me(

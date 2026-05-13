@@ -13,7 +13,8 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
   Map<String, dynamic>? _userProfile;
-  bool _showSelfOthersChoice = false;
+  bool _hasProfileData = false;
+  bool _showFullForm = false; // toggled when user picks "For Others"
 
   @override
   void initState() {
@@ -26,10 +27,8 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
       final profile = await _apiService.getUserProfile();
       setState(() {
         _userProfile = profile;
-        // If name exists, we assume profile details are filled
-        if (profile['name'] != null && profile['name'].toString().isNotEmpty) {
-          _showSelfOthersChoice = true;
-        }
+        _hasProfileData = profile['name'] != null &&
+            profile['name'].toString().isNotEmpty;
         _isLoading = false;
       });
     } catch (e) {
@@ -39,31 +38,6 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
 
   void _navigateToUpload(Map<String, String> data) {
     Navigator.pushNamed(context, '/camera', arguments: data);
-  }
-
-  /// Handles "For Myself" when user profile exists.
-  /// Skips basic info questions and uses saved profile data directly.
-  /// For maternal/child users, still asks essential per-analysis exposure details.
-  void _handleForMyself() {
-    final profile = _userProfile!;
-    final userType = profile['user_type']?.toString() ?? '';
-
-    if (userType == 'Pregnant/Caretaker (<9yrs)') {
-      Navigator.pushNamed(
-        context,
-        '/maternal-child-form',
-        arguments: {'prefilled': true, 'profile': profile},
-      );
-    } else {
-      final formData = {
-        'name': profile['name']?.toString() ?? '',
-        'age': profile['age']?.toString() ?? '',
-        'gender': profile['gender']?.toString() ?? '',
-        'water_source': profile['water_source']?.toString() ?? '',
-        'toothpaste_type': profile['toothpaste_type']?.toString() ?? '',
-      };
-      _navigateToUpload(formData);
-    }
   }
 
   @override
@@ -85,17 +59,25 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
         ],
       ),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(32.0),
-          child: _showSelfOthersChoice
-              ? _buildSelfOthersView()
-              : _buildUserTypeView(),
+          child: _showFullForm
+              ? _buildUserTypeView()
+              : _hasProfileData
+                  ? _buildQuickAnalysisView()
+                  : _buildUserTypeView(),
         ),
       ),
     );
   }
 
-  Widget _buildSelfOthersView() {
+  /// When profile data exists: show user info card + only the essential
+  /// per-analysis fields (water source, toothpaste type), then proceed.
+  Widget _buildQuickAnalysisView() {
+    final _quickFormKey = GlobalKey<FormState>();
+    String waterSource = _userProfile?['water_source']?.toString() ?? '';
+    String toothpasteType = _userProfile?['toothpaste_type']?.toString() ?? '';
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -103,9 +85,7 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
         // User info card
         Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -141,35 +121,92 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
                     ],
                   ),
                 ),
+                const Icon(Icons.check_circle, color: Color(0xFF008080)),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 24),
+
         const Text(
-          'Who is this analysis for?',
+          'Quick Analysis',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 40),
-        ElevatedButton(
-          onPressed: _handleForMyself,
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-          ),
-          child: const Text('For Myself'),
+        const SizedBox(height: 8),
+        Text(
+          'Your profile details will be used automatically.\nJust confirm these per-analysis details:',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
+
+        // Per-analysis essential fields only
+        Form(
+          key: _quickFormKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Primary Water Source',
+                  prefixIcon: Icon(Icons.water_drop),
+                ),
+                value: waterSource.isEmpty ? null : waterSource,
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please select a water source' : null,
+                items: ['Well', 'RO', 'Ground', 'Other']
+                    .map((label) =>
+                        DropdownMenuItem(value: label, child: Text(label)))
+                    .toList(),
+                onChanged: (value) => waterSource = value ?? '',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                initialValue: toothpasteType,
+                decoration: const InputDecoration(
+                  labelText: 'Toothpaste Type/Brand',
+                  prefixIcon: Icon(Icons.brush),
+                ),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter toothpaste type' : null,
+                onChanged: (value) => toothpasteType = value,
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Proceed to Image Selection'),
+                onPressed: () {
+                  if (_quickFormKey.currentState!.validate()) {
+                    final formData = {
+                      'name': _userProfile!['name']?.toString() ?? '',
+                      'age': _userProfile!['age']?.toString() ?? '',
+                      'gender': _userProfile!['gender']?.toString() ?? '',
+                      'water_source': waterSource,
+                      'toothpaste_type': toothpasteType,
+                    };
+                    _navigateToUpload(formData);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
         OutlinedButton(
           onPressed: () {
-            setState(() => _showSelfOthersChoice = false);
+            setState(() => _showFullForm = true);
           },
           style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             side: BorderSide(color: Theme.of(context).primaryColor),
           ),
           child: Text(
-            'For Others',
+            'Analyse for someone else',
             style: TextStyle(color: Theme.of(context).primaryColor),
           ),
         ),
@@ -177,6 +214,7 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
     );
   }
 
+  /// Full form flow — when no profile data exists or user picks "For Others"
   Widget _buildUserTypeView() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -190,11 +228,10 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
         const SizedBox(height: 40),
         ElevatedButton(
           onPressed: () {
-            final isSelf = _userProfile?['name'] == null;
             Navigator.pushNamed(
               context,
               '/maternal-child-form',
-              arguments: {'is_self': isSelf},
+              arguments: {'is_self': !_showFullForm},
             );
           },
           style: ElevatedButton.styleFrom(
@@ -205,11 +242,10 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
         const SizedBox(height: 30),
         ElevatedButton(
           onPressed: () {
-            final isSelf = _userProfile?['name'] == null;
             Navigator.pushNamed(
               context,
               '/general-user-form',
-              arguments: {'is_self': isSelf},
+              arguments: {'is_self': !_showFullForm},
             );
           },
           style: ElevatedButton.styleFrom(
@@ -217,11 +253,11 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
           ),
           child: const Text('Age 9+'),
         ),
-        if (_userProfile?['name'] != null) ...[
+        if (_hasProfileData) ...[
           const SizedBox(height: 20),
           TextButton(
-            onPressed: () => setState(() => _showSelfOthersChoice = true),
-            child: const Text('Back to Self/Others'),
+            onPressed: () => setState(() => _showFullForm = false),
+            child: const Text('← Back to Quick Analysis'),
           ),
         ],
       ],
