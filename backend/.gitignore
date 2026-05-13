@@ -1,0 +1,29 @@
+# Python virtual environment
+venv/
+.venv/
+
+# Firebase service account key
+*.json # Be careful: this will ignore ALL json files. Be specific if needed, e.g., serviceAccountKey.json
+
+# Environment variables
+.env
+.flaskenv
+
+# Jupyter Notebooks (if any)
+.ipynb_checkpoints/
+
+# IDE files
+.idea/
+.vscode/
+
+# Build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+
+# Logs
+*.log
