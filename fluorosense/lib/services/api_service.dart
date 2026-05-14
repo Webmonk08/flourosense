@@ -3,8 +3,11 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  final String _baseUrl = "http://127.0.0.1:8000"; // Your FastAPI server address
-  
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8000',
+  );
+
   // Configure storage once for all platforms
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -61,7 +64,7 @@ class ApiService {
       throw Exception('Failed to register: ${response.body}');
     }
   }
-  
+
   Future<void> logout() async {
     await _deleteToken();
   }
@@ -82,7 +85,9 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updateData) async {
+  Future<Map<String, dynamic>> updateProfile(
+    Map<String, dynamic> updateData,
+  ) async {
     final token = await _getToken();
     final response = await http.put(
       Uri.parse("$_baseUrl/users/me"),
@@ -129,7 +134,7 @@ class ApiService {
     }
 
     var request = http.MultipartRequest('POST', Uri.parse("$_baseUrl/report"));
-    
+
     // Add headers
     request.headers['Authorization'] = 'Bearer $token';
 

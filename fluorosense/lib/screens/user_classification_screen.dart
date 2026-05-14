@@ -25,13 +25,15 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
   Future<void> _checkUserProfile() async {
     try {
       final profile = await _apiService.getUserProfile();
+      if (!mounted) return;
       setState(() {
         _userProfile = profile;
-        _hasProfileData = profile['name'] != null &&
-            profile['name'].toString().isNotEmpty;
+        _hasProfileData =
+            profile['name'] != null && profile['name'].toString().isNotEmpty;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -64,8 +66,8 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
           child: _showFullForm
               ? _buildUserTypeView()
               : _hasProfileData
-                  ? _buildQuickAnalysisView()
-                  : _buildUserTypeView(),
+              ? _buildQuickAnalysisView()
+              : _buildUserTypeView(),
         ),
       ),
     );
@@ -85,7 +87,9 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
         // User info card
         Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -153,11 +157,14 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
                   prefixIcon: Icon(Icons.water_drop),
                 ),
                 value: waterSource.isEmpty ? null : waterSource,
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please select a water source' : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please select a water source'
+                    : null,
                 items: ['Well', 'RO', 'Ground', 'Other']
-                    .map((label) =>
-                        DropdownMenuItem(value: label, child: Text(label)))
+                    .map(
+                      (label) =>
+                          DropdownMenuItem(value: label, child: Text(label)),
+                    )
                     .toList(),
                 onChanged: (value) => waterSource = value ?? '',
               ),
@@ -168,8 +175,9 @@ class _UserClassificationScreenState extends State<UserClassificationScreen> {
                   labelText: 'Toothpaste Type/Brand',
                   prefixIcon: Icon(Icons.brush),
                 ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter toothpaste type' : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter toothpaste type'
+                    : null,
                 onChanged: (value) => toothpasteType = value,
               ),
               const SizedBox(height: 30),

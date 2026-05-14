@@ -17,10 +17,25 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
 
-  Future<void> _pickImageAndSubmit(ImageSource source, Map<String, String> formData) async {
-    final XFile? pickedFile = await _picker.pickImage(source: source);
+  Future<void> _pickImageAndSubmit(
+    ImageSource source,
+    Map<String, String> formData,
+  ) async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
 
-    if (pickedFile == null) return;
+    if (pickedFile == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No image selected. Please try again.')),
+        );
+      }
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -49,9 +64,9 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -63,7 +78,8 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final formData = ModalRoute.of(context)!.settings.arguments as Map<String, String>;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final formData = (args is Map<String, String>) ? args : <String, String>{};
 
     return Scaffold(
       appBar: AppBar(
