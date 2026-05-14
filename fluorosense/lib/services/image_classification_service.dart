@@ -5,10 +5,7 @@ import 'package:image/image.dart' as img;
 
 class ImageClassificationService {
   Future<void> loadModel() async {
-    await Tflite.loadModel(
-      model: "assets/model.tflite",
-      labels: "assets/labels.txt",
-    );
+    _interpreter = await Interpreter.fromAsset("assets/model.tflite");
   }
 
   Future<List?> classifyImage(File imageFile) async {
@@ -22,7 +19,7 @@ class ImageClassificationService {
     return recognitions;
   }
 
-  dynamic imageToByteListFloat32(
+  Float32List imageToByteListFloat32(
       img.Image image, int inputSize, double mean, double std) {
     var convertedBytes = Float32List(1 * inputSize * inputSize * 3);
     var buffer = Float32List.view(convertedBytes.buffer);
