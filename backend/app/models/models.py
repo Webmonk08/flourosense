@@ -4,9 +4,15 @@ from typing import Optional, List, Dict, Any
 
 # Pydantic model for user data
 class User(BaseModel):
-    id: str
+    id: Optional[str] = None
     email: str
-    hashed_password: str
+    hashed_password: Optional[str] = None
+    name: Optional[str] = None
+    age: Optional[str] = None
+    gender: Optional[str] = None
+    water_source: Optional[str] = None
+    toothpaste_type: Optional[str] = None
+    user_type: Optional[str] = None # 'general' or 'maternal'
 
 # Pydantic model for report data
 class ReportBase(BaseModel):

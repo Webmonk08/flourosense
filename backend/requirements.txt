@@ -9,9 +9,11 @@ python-multipart
 # Authentication
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==4.0.1
 
 # Firebase Admin SDK for Firestore
 firebase-admin
+supabase
 
 # Machine Learning - Inference
 tensorflow

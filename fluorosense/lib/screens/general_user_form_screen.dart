@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fluorosense/services/firestore_service.dart';
+import 'package:fluorosense/services/api_service.dart';
 
 class GeneralUserFormScreen extends StatefulWidget {
   const GeneralUserFormScreen({super.key});
 
   @override
-  _GeneralUserFormScreenState createState() => _GeneralUserFormScreenState();
+  State<GeneralUserFormScreen> createState() => _GeneralUserFormScreenState();
 }
 
 class _GeneralUserFormScreenState extends State<GeneralUserFormScreen> {
@@ -48,20 +48,25 @@ class _GeneralUserFormScreenState extends State<GeneralUserFormScreen> {
               SizedBox(height: 20),
               DropdownButtonFormField(
                 decoration: InputDecoration(labelText: 'Gender'),
-                value: _gender.isEmpty ? null : _gender,
+                initialValue: _gender.isEmpty ? null : _gender,
                 items: ['Male', 'Female', 'Other']
-                    .map((label) =>
-                        DropdownMenuItem(value: label, child: Text(label)))
+                    .map(
+                      (label) =>
+                          DropdownMenuItem(value: label, child: Text(label)),
+                    )
                     .toList(),
-                onChanged: (value) => setState(() => _gender = value.toString()),
+                onChanged: (value) =>
+                    setState(() => _gender = value.toString()),
               ),
               SizedBox(height: 20),
               DropdownButtonFormField(
                 decoration: InputDecoration(labelText: 'Primary Water Source'),
-                value: _waterSource.isEmpty ? null : _waterSource,
+                initialValue: _waterSource.isEmpty ? null : _waterSource,
                 items: ['Well', 'RO', 'Ground', 'Other']
-                    .map((label) =>
-                        DropdownMenuItem(value: label, child: Text(label)))
+                    .map(
+                      (label) =>
+                          DropdownMenuItem(value: label, child: Text(label)),
+                    )
                     .toList(),
                 onChanged: (value) =>
                     setState(() => _waterSource = value.toString()),
@@ -73,11 +78,10 @@ class _GeneralUserFormScreenState extends State<GeneralUserFormScreen> {
               ),
               SizedBox(height: 40),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
-                    
-                    // Collect data into a map
+
                     final formData = {
                       'name': _name,
                       'age': _age,
@@ -86,8 +90,28 @@ class _GeneralUserFormScreenState extends State<GeneralUserFormScreen> {
                       'toothpaste_type': _toothpasteType,
                     };
 
-                    // Navigate to image selection, passing form data
-                    Navigator.pushNamed(context, '/camera', arguments: formData);
+                    final args = ModalRoute.of(context)?.settings.arguments;
+                    if (args is Map<String, dynamic> &&
+                        args['is_self'] == true) {
+                      try {
+                        await ApiService().updateProfile({
+                          'name': _name,
+                          'age': _age,
+                          'gender': _gender,
+                          'water_source': _waterSource,
+                          'toothpaste_type': _toothpasteType,
+                          'user_type': 'Age 9+',
+                        });
+                      } catch (_) {}
+                    }
+
+                    if (mounted) {
+                      Navigator.pushNamed(
+                        context,
+                        '/camera',
+                        arguments: formData,
+                      );
+                    }
                   }
                 },
                 child: Text('Next: Select Image'),
@@ -99,6 +123,3 @@ class _GeneralUserFormScreenState extends State<GeneralUserFormScreen> {
     );
   }
 }
-
-
-

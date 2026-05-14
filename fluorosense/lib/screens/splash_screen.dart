@@ -1,23 +1,53 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:fluorosense/services/auth_service.dart';
 import 'auth_screen.dart';
+import 'user_classification_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final AuthService _authService = AuthService();
+
   @override
   void initState() {
     super.initState();
-    Timer(Duration(seconds: 3), () {
-      Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (context) => AuthScreen(),
-      ));
-    });
+    _checkAuthAndNavigate();
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    // Show splash for at least 2 seconds for a smooth UX
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    // Check if a token exists in storage
+    final hasToken = await _authService.isLoggedIn();
+
+    if (hasToken) {
+      // Token exists — validate it against the server
+      final isValid = await _authService.validateToken();
+
+      if (!mounted) return;
+
+      if (isValid) {
+        // Token is valid, skip login and go straight to the app
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (context) => UserClassificationScreen(),
+        ));
+        return;
+      }
+    }
+
+    // No token or invalid token — go to login
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+      builder: (context) => AuthScreen(),
+    ));
   }
 
   @override

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,8 +6,10 @@ import 'package:fluorosense/services/api_service.dart';
 import 'package:fluorosense/screens/results_screen.dart';
 
 class ImageSelectionScreen extends StatefulWidget {
+  const ImageSelectionScreen({super.key});
+
   @override
-  _ImageSelectionScreenState createState() => _ImageSelectionScreenState();
+  State<ImageSelectionScreen> createState() => _ImageSelectionScreenState();
 }
 
 class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
@@ -15,41 +17,56 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
 
-  Future<void> _pickImageAndSubmit(ImageSource source, Map<String, String> formData) async {
-    final XFile? pickedFile = await _picker.pickImage(source: source);
+  Future<void> _pickImageAndSubmit(
+    ImageSource source,
+    Map<String, String> formData,
+  ) async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
 
-    if (pickedFile == null) return;
+    if (pickedFile == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No image selected. Please try again.')),
+        );
+      }
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
+      final Uint8List imageBytes = await pickedFile.readAsBytes();
+      final String fileName = pickedFile.name;
+
       final results = await _apiService.submitReport(
-        image: File(pickedFile.path),
+        imageBytes: imageBytes,
+        fileName: fileName,
         formData: formData,
       );
 
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ResultsScreen(
-              // The image from the server might be different if it was processed,
-              // but for now, we show the one we uploaded.
-              imageFile: File(pickedFile.path), 
-              classification: results['classification'],
-              confidence: results['confidence'],
-            ),
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ResultsScreen(
+            imageBytes: imageBytes,
+            classification: results['classification'],
+            confidence: results['confidence'],
           ),
-        );
-      }
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('An error occurred: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -61,7 +78,8 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final formData = ModalRoute.of(context)!.settings.arguments as Map<String, String>;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final formData = (args is Map<String, String>) ? args : <String, String>{};
 
     return Scaffold(
       appBar: AppBar(
